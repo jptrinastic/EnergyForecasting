@@ -76,6 +76,56 @@ def PlotHistograms(data):
 	plt.tight_layout()
 	plt.savefig("SimpleHistograms.png")
 
+# Since the desired forecasting data, volume of energy is used, is a daily variable, it may be helpful to compute a new set of data describing statistics within each day that can be used as features/predictors.
+# To do this, I have used the groupby method to group data by 'Date' and then calculate statistics, which are outputted to a new DataFrame, one for each type of statistic (average, variance, etc.)
+# Some of these variables don't make sense (e.g., average of 'school_holiday' variable), but I computed stats for all for now.  We can always change this later.
+# Returns a list, where each element of list is the DataFrame corresponding to a different statistic:
+#  [0] - Mean, [1] - Median, [2] - Variance, [3] - Minimum, [4] - Maximum
+def WithinDayStatistics(data):
+    meanData = data.groupby('Date').mean()
+    medianData = data.groupby('Date').median()
+    varData = data.groupby('Date').var()
+    minData = data.groupby('Date').min()
+    maxData = data.groupby('Date').max()
+    return meanData, medianData, varData, minData, maxData
+
+# Plot scatter plots of various within-day statistics with daily energy volume, output to png file
+# Input: 1) data - input data, 2) stat - descriptive statistics to use for feature to scatter plot vs daily energy volume (options: mean,median,var,min,max)
+def PlotScatterPlots(data,stat):
+
+    # Convert choice of statistic ('stat') into integer to access element of within-day data to use for scatterplot
+    statKey = {'mean' : 0, 'median' : 1, 'var' : 2, 'min' : 3, 'max' : 4}
+    statIndex = statKey[stat]
+    
+    header = list(data[statIndex].columns.values)
+    
+    #Some columns in the data structure aren't appropriate to plot.  For instance, the date doesn't make sense to make a histogram of.  And if the strings for Day_type haven't been converted,
+    #that also can't be plotted.  This makes a list of all the things that will actually be plotted (ie, data types that are floats and integers).
+    #Based on 'stat' input, choose that particular descriptive variable to appen to 'plotHeader'
+    
+    plotHeader = []
+    for label in header:
+        if((isinstance(data[statIndex][label][0],int)) or (isinstance(data[statIndex][label][0],float))):
+            plotHeader.append(label)
+            
+    #Finds how to format the subfigures
+
+    nColumns = 3
+    nRows = math.ceil(len(plotHeader)/3.0)
+    index = 1
+
+    #Plot scatter plots for chosen descriptive statistic and output to file.  The IV (y-axix) is always daily energy volume.
+    plt.close
+    for label in plotHeader:
+        plt.subplot(nRows, nColumns, index)
+        plotLabel=label.replace("_"," ")
+        plt.title(plotLabel)
+        plt.plot(data[statIndex][label],data[0]['Volume'],marker='o',ls='')
+        index = index + 1
+        plt.tick_params(axis='y',labelleft='off')
+    plt.tight_layout()
+    plt.savefig("WithinDayScatterPlots.png")
+
 #Import the trainingSet
 trainingSet = Import('N')
 
@@ -84,3 +134,9 @@ convertedSet = ConvertDayToNumbers(trainingSet)
 
 #Plots the histograms for each of the columns in the set
 PlotHistograms(convertedSet)
+plot.close()
+
+#Create within-day data set and produce scatter plots
+withinDay=WithinDayStatistics(convertedSet)
+PlotScatterPlots(withinDay,'mean')
+plt.close()
